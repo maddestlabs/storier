@@ -50,6 +50,7 @@ type
     skLet,
     skAssign,
     skIf,
+    skFor,
     skProc,
     skReturn,
     skBlock
@@ -82,6 +83,12 @@ type
       ifBranch*: IfBranch
       elifBranches*: seq[IfBranch]
       elseStmts*: seq[Stmt]
+
+    of skFor:
+      forVar*: string
+      forStart*: Expr
+      forEnd*: Expr
+      forBody*: seq[Stmt]
 
     of skProc:
       procName*: string
@@ -158,6 +165,14 @@ proc addElif*(s: Stmt; cond: Expr; body: seq[Stmt]) =
 
 proc addElse*(s: Stmt; body: seq[Stmt]) =
   s.elseStmts = body
+
+proc newFor*(varName: string; startExpr, endExpr: Expr; body: seq[Stmt]; line=0; col=0): Stmt =
+  Stmt(kind: skFor,
+       forVar: varName,
+       forStart: startExpr,
+       forEnd: endExpr,
+       forBody: body,
+       line: line, col: col)
 
 proc newProc*(name: string; params: seq[(string,string)]; body: seq[Stmt]; line=0; col=0): Stmt =
   Stmt(kind: skProc, procName: name, params: params, body: body, line: line, col: col)

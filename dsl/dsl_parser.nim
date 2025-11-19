@@ -72,6 +72,18 @@ proc parsePrefix(p: var Parser): Expr =
     newString(t.lexeme, t.line, t.col)
 
   of tkIdent:
+    # Handle boolean literals and keyword operators
+    if t.lexeme == "true":
+      discard p.advance()
+      return newBool(true, t.line, t.col)
+    elif t.lexeme == "false":
+      discard p.advance()
+      return newBool(false, t.line, t.col)
+    elif t.lexeme == "not":
+      discard p.advance()
+      let v = parseExpr(p, 100)
+      return newUnaryOp("not", v, t.line, t.col)
+
     discard p.advance()
     if p.cur().kind == tkLParen:
       discard p.advance()
@@ -86,7 +98,7 @@ proc parsePrefix(p: var Parser): Expr =
       newIdent(t.lexeme, t.line, t.col)
 
   of tkOp:
-    if t.lexeme in ["-", "not"]:
+    if t.lexeme in ["-"]:
       discard p.advance()
       let v = parseExpr(p, 100)
       newUnaryOp(t.lexeme, v, t.line, t.col)
@@ -107,14 +119,27 @@ proc parsePrefix(p: var Parser): Expr =
 proc parseExpr(p: var Parser; prec=0): Expr =
   var left = parsePrefix(p)
   while true:
-    if p.cur().kind != tkOp:
+    let cur = p.cur()
+    var isOp = false
+    var opLexeme = ""
+
+    # Check if current token is an operator or keyword operator (and/or)
+    if cur.kind == tkOp:
+      isOp = true
+      opLexeme = cur.lexeme
+    elif cur.kind == tkIdent and (cur.lexeme == "and" or cur.lexeme == "or"):
+      isOp = true
+      opLexeme = cur.lexeme
+
+    if not isOp:
       break
-    let thisPrec = precedence(p.cur().lexeme)
+
+    let thisPrec = precedence(opLexeme)
     if thisPrec <= prec:
       break
     let t = advance(p)    # SAFE (value is used)
     let right = parseExpr(p, thisPrec)
-    left = newBinOp(t.lexeme, left, right, t.line, t.col)
+    left = newBinOp(opLexeme, left, right, t.line, t.col)
   left
 
 # statements ------------------------------------------------------------
@@ -155,6 +180,34 @@ proc parseIf(p: var Parser): Stmt =
 
   node
 
+proc parseFor(p: var Parser): Stmt =
+  let tok = advance(p)
+  let varTok = expect(p, tkIdent, "Expected loop variable name")
+
+  # Expect "in" keyword
+  if p.cur().kind != tkIdent or p.cur().lexeme != "in":
+    quit "Parse Error: Expected 'in' after for variable at line " & $p.cur().line
+  discard p.advance()
+
+  # Expect "range" function call
+  if p.cur().kind != tkIdent or p.cur().lexeme != "range":
+    quit "Parse Error: Expected 'range' after 'in' at line " & $p.cur().line
+  discard p.advance()
+
+  discard expect(p, tkLParen, "Expected '(' after 'range'")
+
+  # Parse range arguments (start, end)
+  let startExpr = parseExpr(p)
+  discard expect(p, tkComma, "Expected ',' in range(start, end)")
+  let endExpr = parseExpr(p)
+
+  discard expect(p, tkRParen, "Expected ')' after range arguments")
+  discard expect(p, tkColon, "Expected ':'")
+  discard expect(p, tkNewline, "Expected newline")
+
+  let body = parseBlock(p)
+  newFor(varTok.lexeme, startExpr, endExpr, body, tok.line, tok.col)
+
 proc parseProc(p: var Parser): Stmt =
   let tok = advance(p)
   let nameTok = expect(p, tkIdent, "Expected proc name")
@@ -190,6 +243,7 @@ proc parseStmt(p: var Parser): Stmt =
     of "var": return parseVarStmt(p, false)
     of "let": return parseVarStmt(p, true)
     of "if": return parseIf(p)
+    of "for": return parseFor(p)
     of "proc": return parseProc(p)
     of "return": return parseReturn(p)
     else:
