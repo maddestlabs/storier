@@ -211,6 +211,21 @@ proc evalExpr(e: Expr; env: ref Env): Value =
       quit "Unknown unary op: " & e.unaryOp
 
   of ekBinOp:
+    # Handle logical operators with short-circuit evaluation
+    if e.op == "and":
+      let l = evalExpr(e.left, env)
+      if not toBool(l):
+        return valBool(false)
+      let r = evalExpr(e.right, env)
+      return valBool(toBool(r))
+    elif e.op == "or":
+      let l = evalExpr(e.left, env)
+      if toBool(l):
+        return valBool(true)
+      let r = evalExpr(e.right, env)
+      return valBool(toBool(r))
+
+    # Evaluate both sides for other operators
     let l = evalExpr(e.left, env)
     let r = evalExpr(e.right, env)
     let lf = toFloat(l)
@@ -272,6 +287,25 @@ proc execStmt*(s: Stmt; env: ref Env): ExecResult =
       if toBool(evalExpr(br.cond, env)):
         return execBlock(br.stmts, env)
     return execBlock(s.elseStmts, env)
+
+  of skFor:
+    # Evaluate range bounds
+    let startVal = evalExpr(s.forStart, env)
+    let endVal = evalExpr(s.forEnd, env)
+    let startInt = toInt(startVal)
+    let endInt = toInt(endVal)
+
+    # Loop from start to end-1 (like Python's range)
+    for i in startInt ..< endInt:
+      # Set loop variable
+      setVar(env, s.forVar, valInt(i))
+      # Execute body
+      let res = execBlock(s.forBody, env)
+      # If body returns, propagate the return
+      if res.hasReturn:
+        return res
+
+    noReturn()
 
   of skProc:
     var pnames: seq[string] = @[]
