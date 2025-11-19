@@ -51,6 +51,16 @@ proc expectColor(v: Value): Color =
     of "green": return GREEN
     of "blue": return BLUE
     of "yellow": return YELLOW
+    of "orange": return ORANGE
+    of "purple": return PURPLE
+    of "pink": return PINK
+    of "lightgray": return LIGHTGRAY
+    of "gray": return GRAY
+    of "darkgray": return DARKGRAY
+    of "raywhite": return RAYWHITE
+    of "lightblue": return Color(r: 173, g: 216, b: 230, a: 255)  # Raylib doesn't have LIGHTBLUE constant
+    of "skyblue": return SKYBLUE
+    of "lime": return LIME
     else:
       quit "Unknown color '" & v.s & "'"
 
