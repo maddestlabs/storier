@@ -153,6 +153,7 @@ proc parseVarStmt(p: var Parser; isLet: bool): Stmt =
   else:     newVar(nameTok.lexeme, val, kw.line, kw.col)
 
 proc parseAssign(p: var Parser; nameTok: Token): Stmt =
+  discard p.advance()  # Skip the identifier (already captured in nameTok)
   discard expect(p, tkOp, "Expected '='")
   let val = parseExpr(p)
   newAssign(nameTok.lexeme, val, nameTok.line, nameTok.col)
@@ -247,7 +248,8 @@ proc parseStmt(p: var Parser): Stmt =
     of "proc": return parseProc(p)
     of "return": return parseReturn(p)
     else:
-      if p.tokens[p.pos+1].kind == tkOp and p.tokens[p.pos+1].lexeme == "=":
+      # Check for assignment (lookahead for '=')
+      if p.pos+1 < p.tokens.len and p.tokens[p.pos+1].kind == tkOp and p.tokens[p.pos+1].lexeme == "=":
         return parseAssign(p, t)
       let e = parseExpr(p)
       return newExprStmt(e, t.line, t.col)
