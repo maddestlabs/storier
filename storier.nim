@@ -81,7 +81,7 @@ proc runMainLoop() =
     renderMarkdown(currentStory)
 
     # 2. Render DSL scripts (user-defined)
-    # triggerEvent("render")
+    triggerEvent("on:render")
 
     # 3. Debug text to confirm Raylib is alive
     # drawText("Hello", 20, 20, 20, White)
